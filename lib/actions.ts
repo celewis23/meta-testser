@@ -222,6 +222,9 @@ export async function runTestsAction(formData: FormData) {
     revalidatePath("/review-pack");
     redirect(`/runs?runId=${runId}`);
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
     const message = error instanceof Error ? error.message : "Unable to start the test run.";
     redirect(`/tests?environmentId=${environmentId}&error=${encodeURIComponent(message)}`);
   }
@@ -340,4 +343,14 @@ function csvToArray(value: string) {
 function parseJsonOrNull(value?: string) {
   if (!value) return null;
   return JSON.parse(value);
+}
+
+function isRedirectError(error: unknown): error is { digest: string } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest?: unknown }).digest === "string" &&
+    (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  );
 }
