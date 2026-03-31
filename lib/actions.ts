@@ -8,6 +8,7 @@ import { logAudit } from "@/lib/db/audit";
 import { syncBuiltInTests } from "@/lib/meta/catalog";
 import { discoverAssets } from "@/lib/meta/discovery";
 import { runTestsForEnvironment } from "@/lib/meta/runner";
+import { extendUserAccessToken, regeneratePageAccessToken } from "@/lib/meta/token-manager";
 import { createSessionCookie, verifyAdminPassword, clearSessionCookie } from "@/lib/security/auth";
 import { encryptSecret } from "@/lib/security/crypto";
 import { getDefaultEnvironmentValues, getEffectiveEnvironmentValues } from "@/lib/security/env";
@@ -181,6 +182,48 @@ export async function runDiscoveryAction(formData: FormData) {
   revalidatePath("/assets");
   revalidatePath("/dashboard");
   redirect(`/assets?environmentId=${environmentId}&discovered=1`);
+}
+
+export async function extendUserTokenAction(formData: FormData) {
+  const environmentId = String(formData.get("environmentId"));
+
+  try {
+    const result = await extendUserAccessToken(environmentId);
+    await logAudit({
+      action: "extend_user_token",
+      entityType: "Environment",
+      environmentId,
+      summary: `Extended user token${result.expiresIn ? ` (${result.expiresIn}s)` : ""}`
+    });
+    revalidatePath("/environments");
+    revalidatePath("/permissions");
+    revalidatePath("/dashboard");
+    redirect(`/environments?environmentId=${environmentId}&tokenUpdated=user`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to extend the user token.";
+    redirect(`/environments?environmentId=${environmentId}&tokenError=${encodeURIComponent(message)}`);
+  }
+}
+
+export async function regeneratePageTokenAction(formData: FormData) {
+  const environmentId = String(formData.get("environmentId"));
+
+  try {
+    const result = await regeneratePageAccessToken(environmentId);
+    await logAudit({
+      action: "regenerate_page_token",
+      entityType: "Environment",
+      environmentId,
+      summary: `Regenerated page token for ${result.pageName}`
+    });
+    revalidatePath("/environments");
+    revalidatePath("/assets");
+    revalidatePath("/dashboard");
+    redirect(`/environments?environmentId=${environmentId}&tokenUpdated=page`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to regenerate the page token.";
+    redirect(`/environments?environmentId=${environmentId}&tokenError=${encodeURIComponent(message)}`);
+  }
 }
 
 export async function runTestsAction(formData: FormData) {

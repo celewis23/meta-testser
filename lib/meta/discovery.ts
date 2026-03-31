@@ -28,6 +28,27 @@ export async function discoverAssets(environmentId: string) {
   const systemUserToken = effective.systemUserToken;
 
   if (userToken) {
+    const me = await client.request<Record<string, unknown>>({
+      apiVersion: effective.graphApiVersion,
+      accessToken: userToken,
+      endpoint: "me",
+      method: HttpMethod.GET,
+      params: {
+        fields: "id,name"
+      }
+    });
+
+    if (me.data?.id) {
+      discoveries.push({
+        type: AssetType.FACEBOOK_USER_ID,
+        value: String(me.data.id),
+        label: String(me.data.name ?? "Current User"),
+        metadata: me.data
+      });
+    }
+  }
+
+  if (userToken) {
     const pages = await client.request<{ data?: Array<Record<string, unknown>> }>({
       apiVersion: effective.graphApiVersion,
       accessToken: userToken,
@@ -84,6 +105,29 @@ export async function discoverAssets(environmentId: string) {
         metadata: ig
       });
     }
+
+    const conversations = await client.request<{ data?: Array<Record<string, unknown>> }>({
+      apiVersion: effective.graphApiVersion,
+      accessToken: pageToken,
+      endpoint: `${pageId}/conversations`,
+      method: HttpMethod.GET,
+      params: {
+        platform: "instagram",
+        fields: "id,updated_time",
+        limit: "10"
+      }
+    });
+
+    for (const conversation of conversations.data?.data ?? []) {
+      if (conversation.id) {
+        discoveries.push({
+          type: AssetType.CONVERSATION_ID,
+          value: String(conversation.id),
+          label: "Instagram conversation",
+          metadata: conversation
+        });
+      }
+    }
   }
 
   const businessId = effective.defaultBusinessId || environment.assets.find((asset) => asset.type === AssetType.BUSINESS_ID)?.value;
@@ -116,6 +160,60 @@ export async function discoverAssets(environmentId: string) {
           label: String(ig.username ?? "Business IG Account"),
           metadata: ig
         });
+      }
+    }
+  }
+
+  const igUserId =
+    effective.defaultInstagramUserId ??
+    discoveries.find((asset) => asset.type === AssetType.INSTAGRAM_USER_ID)?.value ??
+    environment.assets.find((asset) => asset.type === AssetType.INSTAGRAM_USER_ID)?.value;
+
+  if (igUserId && pageToken) {
+    const media = await client.request<{ data?: Array<Record<string, unknown>> }>({
+      apiVersion: effective.graphApiVersion,
+      accessToken: pageToken,
+      endpoint: `${igUserId}/media`,
+      method: HttpMethod.GET,
+      params: {
+        fields: "id,caption,media_type,timestamp,permalink",
+        limit: "10"
+      }
+    });
+
+    for (const item of media.data?.data ?? []) {
+      if (item.id) {
+        discoveries.push({
+          type: AssetType.MEDIA_ID,
+          value: String(item.id),
+          label: String(item.media_type ?? "Media"),
+          metadata: item
+        });
+      }
+    }
+
+    const mediaIds = media.data?.data?.map((item) => String(item.id)).filter(Boolean) ?? [];
+    for (const mediaId of mediaIds.slice(0, 3)) {
+      const comments = await client.request<{ data?: Array<Record<string, unknown>> }>({
+        apiVersion: effective.graphApiVersion,
+        accessToken: pageToken,
+        endpoint: `${mediaId}/comments`,
+        method: HttpMethod.GET,
+        params: {
+          fields: "id,text,username,timestamp",
+          limit: "10"
+        }
+      });
+
+      for (const comment of comments.data?.data ?? []) {
+        if (comment.id) {
+          discoveries.push({
+            type: AssetType.COMMENT_ID,
+            value: String(comment.id),
+            label: String(comment.username ?? "Comment"),
+            metadata: comment
+          });
+        }
       }
     }
   }

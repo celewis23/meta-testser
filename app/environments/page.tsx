@@ -1,6 +1,7 @@
 import { getEnvironmentContext } from "@/lib/db/context";
 import { prisma } from "@/lib/db/prisma";
-import { cloneEnvironmentAction, getDecryptedEnvironmentValues, loadEnvDefaultsAction, saveEnvironmentAction } from "@/lib/actions";
+import { cloneEnvironmentAction, extendUserTokenAction, getDecryptedEnvironmentValues, loadEnvDefaultsAction, regeneratePageTokenAction, saveEnvironmentAction } from "@/lib/actions";
+import { getEnvironmentTokenStatuses } from "@/lib/meta/token-manager";
 import { formatDateTime, maskSecret } from "@/lib/utils/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,11 +13,12 @@ import { Textarea } from "@/components/ui/textarea";
 export default async function EnvironmentsPage({
   searchParams
 }: {
-  searchParams: Promise<{ environmentId?: string }>;
+  searchParams: Promise<{ environmentId?: string; tokenError?: string; tokenUpdated?: string }>;
 }) {
-  const { environmentId } = await searchParams;
+  const { environmentId, tokenError, tokenUpdated } = await searchParams;
   const { environments, selectedEnvironment } = await getEnvironmentContext(environmentId);
   const selectedValues = selectedEnvironment ? await getDecryptedEnvironmentValues(selectedEnvironment.id) : null;
+  const tokenStatuses = selectedEnvironment ? await getEnvironmentTokenStatuses(selectedEnvironment.id) : [];
   const auditLogs = selectedEnvironment
     ? await prisma.auditLog.findMany({
         where: { environmentId: selectedEnvironment.id },
@@ -40,6 +42,20 @@ export default async function EnvironmentsPage({
             <CardDescription>Use this form to securely store your Graph version, app credentials, tokens, IDs, and notes.</CardDescription>
           </CardHeader>
           <CardContent>
+            {tokenUpdated ? (
+              <div className="mb-4 rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-success">
+                {tokenUpdated === "user"
+                  ? "User token updated successfully."
+                  : tokenUpdated === "page"
+                    ? "Page token regenerated successfully."
+                    : "Token updated successfully."}
+              </div>
+            ) : null}
+            {tokenError ? (
+              <div className="mb-4 rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-warning">
+                {tokenError}
+              </div>
+            ) : null}
             <form action={saveEnvironmentAction} className="grid gap-4 md:grid-cols-2">
               <input type="hidden" name="id" defaultValue={selectedEnvironment?.id} />
               <div className="space-y-2">
@@ -103,6 +119,63 @@ export default async function EnvironmentsPage({
         </Card>
 
         <div className="space-y-6">
+          {selectedEnvironment ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Token management</CardTitle>
+                <CardDescription>
+                  Extend the user token inside the app, regenerate the page token from `/me/accounts`, and validate what the app can actually use right now.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-3">
+                  {tokenStatuses.map((status) => (
+                    <div key={status.tokenType} className="rounded-xl border border-border p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold capitalize">{status.tokenType.replaceAll("_", " ")}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">{status.message}</p>
+                        </div>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            status.valid === true
+                              ? "bg-success/15 text-success"
+                              : status.valid === false
+                                ? "bg-destructive/15 text-destructive"
+                                : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {status.valid === true ? "Valid" : status.valid === false ? "Needs attention" : "Unknown"}
+                        </span>
+                      </div>
+                      {status.metadata ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {JSON.stringify(status.metadata)}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <form action={extendUserTokenAction}>
+                    <input type="hidden" name="environmentId" value={selectedEnvironment.id} />
+                    <Button type="submit">Extend user token</Button>
+                  </form>
+                  <form action={regeneratePageTokenAction}>
+                    <input type="hidden" name="environmentId" value={selectedEnvironment.id} />
+                    <Button type="submit" variant="outline">Regenerate page token</Button>
+                  </form>
+                </div>
+                <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                  Automatic from here:
+                  user-token extension and page-token regeneration from the current user token.
+                  Still manual:
+                  system user token creation or any full re-auth flow that requires Meta login consent.
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
           <Card>
             <CardHeader>
               <CardTitle>Saved environments</CardTitle>

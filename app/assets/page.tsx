@@ -32,7 +32,7 @@ export default async function AssetsPage({
       <SectionHeader
         eyebrow="Assets"
         title="Manual inputs and Graph-powered discovery"
-        description="Start with the IDs you already know, then let the lab derive linked Pages and Instagram users where possible. Missing prerequisites stay explicit instead of failing vaguely."
+        description="Start with the business ID, page ID, and Instagram user ID when you have them. The lab can then derive user, media, comment, conversation, linked page, and linked Instagram assets where permissions allow. Missing prerequisites stay explicit instead of failing vaguely."
       />
 
       <Card>
@@ -93,7 +93,7 @@ export default async function AssetsPage({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                If Page ID exists, the lab fetches `instagram_business_account`. If a user token exists, it fetches `me/accounts`. If Business ID exists, it tries business-owned Pages and Instagram accounts.
+                Best setup for a new user: enter the Business ID, Page ID, and Instagram User ID. From there the lab will try to derive the current Facebook user, linked page and IG account details, page conversations, IG media IDs, and comment IDs. If a user token exists, it also fetches `me` and `me/accounts`. If a business ID exists, it tries business-owned Pages and Instagram accounts.
               </div>
               <form action={runDiscoveryAction}>
                 <input type="hidden" name="environmentId" value={selectedEnvironment.id} />
