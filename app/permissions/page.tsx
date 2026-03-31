@@ -33,6 +33,8 @@ export default async function PermissionsPage({
     error = result.error?.message ?? null;
   }
 
+  const tokenExpired = error ? isExpiredTokenMessage(error) : false;
+
   const granted = permissions.filter((permission) => permission.status === "granted").map((permission) => permission.permission);
   const declined = permissions.filter((permission) => permission.status !== "granted");
   const required = [...new Set(tests.flatMap((test) => (test.requiredPermissions as string[]) ?? []))];
@@ -98,6 +100,35 @@ export default async function PermissionsPage({
         </Card>
       </div>
 
+      {tokenExpired ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Token recovery steps</CardTitle>
+            <CardDescription>The current user token has expired, so permission inspection cannot succeed until it is replaced.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-border p-4 text-sm">
+              <p className="font-medium">1. Open Environment Management</p>
+              <p className="mt-1 text-muted-foreground">
+                Paste a fresh user token into the active environment and save it.
+              </p>
+            </div>
+            <div className="rounded-xl border border-border p-4 text-sm">
+              <p className="font-medium">2. Extend the new user token</p>
+              <p className="mt-1 text-muted-foreground">
+                Use the in-app token controls so you can keep the token valid longer.
+              </p>
+            </div>
+            <div className="rounded-xl border border-border p-4 text-sm">
+              <p className="font-medium">3. Regenerate page token</p>
+              <p className="mt-1 text-muted-foreground">
+                Refresh the page token from the new user token, then re-run discovery and permissions.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle>Declined or unavailable permissions</CardTitle>
@@ -114,4 +145,9 @@ export default async function PermissionsPage({
       </Card>
     </div>
   );
+}
+
+function isExpiredTokenMessage(message: string) {
+  const normalized = message.toLowerCase();
+  return normalized.includes("expired") || normalized.includes("session has expired");
 }

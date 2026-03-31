@@ -26,6 +26,9 @@ export default async function EnvironmentsPage({
   const { environments, selectedEnvironment } = await getEnvironmentContext(environmentId);
   const selectedValues = selectedEnvironment ? await getDecryptedEnvironmentValues(selectedEnvironment.id) : null;
   const tokenStatuses = selectedEnvironment ? await getEnvironmentTokenStatuses(selectedEnvironment.id) : [];
+  const expiredUserToken = tokenStatuses.find(
+    (status) => status.tokenType === "user" && status.valid === false && isExpiredTokenMessage(status.message)
+  );
   const auditLogs = selectedEnvironment
     ? await prisma.auditLog.findMany({
         where: { environmentId: selectedEnvironment.id },
@@ -276,6 +279,34 @@ export default async function EnvironmentsPage({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {expiredUserToken ? (
+                  <div className="rounded-2xl border border-warning/40 bg-warning/10 p-5">
+                    <p className="text-base font-semibold text-warning">User token expired</p>
+                    <p className="mt-2 text-sm text-warning">
+                      The current user token is no longer usable, so page-token regeneration and permission checks will also start to fail.
+                    </p>
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                      <div className="rounded-xl bg-background/70 p-4 text-sm">
+                        <p className="font-medium">1. Paste a fresh user token</p>
+                        <p className="mt-1 text-muted-foreground">
+                          Replace the expired token in the Tokens section above and save the environment.
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-background/70 p-4 text-sm">
+                        <p className="font-medium">2. Extend it here</p>
+                        <p className="mt-1 text-muted-foreground">
+                          After saving, use the extend button below so you do not have to go back to Graph Explorer as often.
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-background/70 p-4 text-sm">
+                        <p className="font-medium">3. Regenerate page token</p>
+                        <p className="mt-1 text-muted-foreground">
+                          Refresh the page token from the new user token, then rerun discovery and the review pack.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
                 <div className="grid gap-4 md:grid-cols-3">
                   {tokenStatuses.map((status) => (
                     <div key={status.tokenType} className="rounded-2xl border border-border p-4">
@@ -350,4 +381,9 @@ function Field({
       {children}
     </div>
   );
+}
+
+function isExpiredTokenMessage(message: string) {
+  const normalized = message.toLowerCase();
+  return normalized.includes("expired") || normalized.includes("session has expired");
 }
