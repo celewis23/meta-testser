@@ -48,7 +48,7 @@ export default async function EnvironmentsPage({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="graphApiVersion">Graph API version</Label>
-                <Input id="graphApiVersion" name="graphApiVersion" defaultValue={selectedValues?.graphApiVersion ?? "v22.0"} required />
+                <Input id="graphApiVersion" name="graphApiVersion" defaultValue={selectedValues?.graphApiVersion ?? "v25.0"} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="appId">App ID</Label>
