@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum AssetType {
+  BUSINESS_ID
+  FACEBOOK_USER_ID
+  PAGE_ID
+  INSTAGRAM_USER_ID
+  CONVERSATION_ID
+  MEDIA_ID
+  COMMENT_ID
+}
+
+enum AssetSource {
+  MANUAL
+  DISCOVERED
+  ENV_DEFAULT
+}
+
+enum TokenType {
+  USER
+  PAGE
+  SYSTEM_USER
+}
+
+enum HttpMethod {
+  GET
+  POST
+}
+
+enum TestStatus {
+  PASSED
+  FAILED
+  SKIPPED
+  ERROR
+  BLOCKED
+}
+
+model Environment {
+  id                       String       @id @default(cuid())
+  label                    String
+  slug                     String       @unique
+  graphApiVersion          String
+  appId                    String
+  encryptedAppSecret       String?
+  encryptedUserAccessToken String?
+  encryptedPageAccessToken String?
+  encryptedSystemUserToken String?
+  defaultBusinessId        String?
+  defaultPageId            String?
+  defaultInstagramUserId   String?
+  notes                    String?
+  isDefault                Boolean      @default(false)
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
+  assets                   AssetValue[]
+  runs                     TestRun[]
+  favorites                FavoritePack[]
+  auditLogs                AuditLog[]
+}
+
+model AssetValue {
+  id             String      @id @default(cuid())
+  environmentId  String
+  type           AssetType
+  value          String
+  label          String?
+  source         AssetSource @default(MANUAL)
+  metadata       Json?
+  lastVerifiedAt DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  environment    Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+
+  @@unique([environmentId, type, value])
+}
+
+model TestDefinition {
+  id                  String      @id @default(cuid())
+  key                 String      @unique
+  displayName         String
+  category            String
+  description         String
+  requiredPermissions Json
+  tokenType           TokenType
+  method              HttpMethod
+  endpointTemplate    String
+  queryParams         Json?
+  requestBody         Json?
+  dependencies        Json
+  expectedRules       Json
+  safeToAutoRun       Boolean     @default(true)
+  appearsInReviewPack Boolean     @default(true)
+  sampleSuccessShape  Json?
+  troubleshootingNotes String?
+  packKeys            Json
+  isBuiltIn           Boolean     @default(false)
+  isActive            Boolean     @default(true)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  runItems            TestRunItem[]
+}
+
+model TestRun {
+  id            String      @id @default(cuid())
+  environmentId String
+  triggerType   String
+  summaryStatus TestStatus
+  totalCount    Int         @default(0)
+  passedCount   Int         @default(0)
+  failedCount   Int         @default(0)
+  skippedCount  Int         @default(0)
+  errorCount    Int         @default(0)
+  blockedCount  Int         @default(0)
+  notes         String?
+  pacingMs      Int?
+  retryCount    Int         @default(0)
+  startedAt     DateTime    @default(now())
+  finishedAt    DateTime?
+  createdAt     DateTime    @default(now())
+  environment   Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  items         TestRunItem[]
+}
+
+model TestRunItem {
+  id               String         @id @default(cuid())
+  testRunId        String
+  testDefinitionId String
+  status           TestStatus
+  endpoint         String
+  method           HttpMethod
+  resolvedParams   Json?
+  tokenType        TokenType
+  responseCode     Int?
+  responseHeaders  Json?
+  responseJson     Json?
+  normalizedError  Json?
+  executionTimeMs  Int?
+  relevantIds      Json?
+  curlCommand      String?
+  explorerRequest  String?
+  suggestions      Json?
+  createdAt        DateTime       @default(now())
+  finishedAt       DateTime?
+  testRun          TestRun        @relation(fields: [testRunId], references: [id], onDelete: Cascade)
+  testDefinition   TestDefinition @relation(fields: [testDefinitionId], references: [id], onDelete: Restrict)
+}
+
+model FavoritePack {
+  id            String       @id @default(cuid())
+  environmentId String?
+  name          String
+  description   String?
+  testKeys      Json
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  environment   Environment? @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+}
+
+model AuditLog {
+  id            String       @id @default(cuid())
+  environmentId String?
+  action        String
+  entityType    String
+  entityId      String?
+  summary       String
+  diff          Json?
+  actor         String?
+  createdAt     DateTime     @default(now())
+  environment   Environment? @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+}
