@@ -210,7 +210,7 @@ export const builtInTests: BuiltInTestDefinition[] = [
     tokenType: TokenType.PAGE,
     method: HttpMethod.GET,
     endpointTemplate: "{commentId}",
-    queryParams: { fields: "id,timestamp" },
+    queryParams: { fields: "id" },
     dependencies: [
       {
         key: "commentId",

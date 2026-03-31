@@ -200,7 +200,7 @@ export async function discoverAssets(environmentId: string) {
         endpoint: `${mediaId}/comments`,
         method: HttpMethod.GET,
         params: {
-          fields: "id,timestamp",
+          fields: "id",
           limit: "10"
         }
       });
