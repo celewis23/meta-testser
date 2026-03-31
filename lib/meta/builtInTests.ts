@@ -174,25 +174,27 @@ export const builtInTests: BuiltInTestDefinition[] = [
   },
   {
     key: "get_business_instagram_accounts",
-    displayName: "Get business Instagram accounts",
+    displayName: "Get business linked Instagram accounts via owned pages",
     category: "business",
-    description: "Lists Instagram accounts under a business manager if available.",
+    description: "Finds Instagram accounts linked to pages owned by the business manager using the supported owned_pages edge.",
     requiredPermissions: ["business_management"],
     tokenType: TokenType.SYSTEM_USER,
     method: HttpMethod.GET,
-    endpointTemplate: "{businessId}/owned_instagram_accounts",
-    queryParams: { fields: "id,username,profile_picture_url" },
+    endpointTemplate: "{businessId}/owned_pages",
+    queryParams: { fields: "id,name,instagram_business_account{id,username,profile_picture_url}" },
     dependencies: [
       {
         key: "businessId",
         label: "Business ID",
         required: true,
-        remediation: "Paste a Business ID before testing business-owned Instagram assets."
+        remediation: "Paste a Business ID before testing business-linked Instagram assets."
       }
     ],
-    expectedRules: [{ type: "field_exists", field: "data" }],
+    expectedRules: [{ type: "array_nonempty", field: "data" }],
     safeToAutoRun: true,
     appearsInReviewPack: true,
+    troubleshootingNotes:
+      "If no linked Instagram account appears, verify the business owns the page and that the page is connected to an Instagram professional account.",
     packKeys: ["business_management", "discovery"]
   },
   {

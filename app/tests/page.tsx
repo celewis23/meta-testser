@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { RunSuiteSubmit } from "@/components/tests/run-suite-submit";
 
 export default async function TestsPage({
   searchParams
@@ -134,7 +135,7 @@ export default async function TestsPage({
                 <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
                   Recommended path: use `Favorite pack` to run the seeded starter suite. If a selection resolves to zero tests, the lab now stops the run and tells you exactly why instead of recording an empty pass.
                 </div>
-                <Button type="submit">Run suite</Button>
+                <RunSuiteSubmit />
               </form>
             ) : (
               <p className="text-sm text-muted-foreground">Create an environment first so the runner knows which tokens and defaults to use.</p>
