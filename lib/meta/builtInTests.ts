@@ -151,13 +151,13 @@ export const builtInTests: BuiltInTestDefinition[] = [
   },
   {
     key: "get_business_owned_pages",
-    displayName: "Get business owned pages",
+    displayName: "Get business pages",
     category: "business",
-    description: "Reads Pages connected to a business manager.",
+    description: "Reads Pages connected to a business manager using the business pages edge.",
     requiredPermissions: ["business_management"],
     tokenType: TokenType.SYSTEM_USER,
     method: HttpMethod.GET,
-    endpointTemplate: "{businessId}/owned_pages",
+    endpointTemplate: "{businessId}/client_pages",
     queryParams: { fields: "id,name,instagram_business_account{id,username}" },
     dependencies: [
       {
@@ -174,13 +174,13 @@ export const builtInTests: BuiltInTestDefinition[] = [
   },
   {
     key: "get_business_instagram_accounts",
-    displayName: "Get business linked Instagram accounts via owned pages",
+    displayName: "Get business linked Instagram accounts via business pages",
     category: "business",
-    description: "Finds Instagram accounts linked to pages owned by the business manager using the supported owned_pages edge.",
+    description: "Finds Instagram accounts linked to business pages using the business pages edge.",
     requiredPermissions: ["business_management"],
     tokenType: TokenType.SYSTEM_USER,
     method: HttpMethod.GET,
-    endpointTemplate: "{businessId}/owned_pages",
+    endpointTemplate: "{businessId}/client_pages",
     queryParams: { fields: "id,name,instagram_business_account{id,username,profile_picture_url}" },
     dependencies: [
       {
@@ -194,7 +194,7 @@ export const builtInTests: BuiltInTestDefinition[] = [
     safeToAutoRun: true,
     appearsInReviewPack: true,
     troubleshootingNotes:
-      "If no linked Instagram account appears, verify the business owns the page and that the page is connected to an Instagram professional account.",
+      "If no linked Instagram account appears, verify the business has access to the page and that the page is connected to an Instagram professional account.",
     packKeys: ["business_management", "discovery"]
   },
   {

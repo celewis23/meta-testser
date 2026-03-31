@@ -136,7 +136,7 @@ export async function discoverAssets(environmentId: string) {
     const businessPages = await client.request<{ data?: Array<Record<string, unknown>> }>({
       apiVersion: effective.graphApiVersion,
       accessToken: systemUserToken,
-      endpoint: `${businessId}/owned_pages`,
+      endpoint: `${businessId}/client_pages`,
       method: HttpMethod.GET,
       params: {
         fields: "id,name,instagram_business_account{id,username}"
