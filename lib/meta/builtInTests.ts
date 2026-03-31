@@ -168,8 +168,11 @@ export const builtInTests: BuiltInTestDefinition[] = [
       }
     ],
     expectedRules: [{ type: "field_exists", field: "data" }],
-    safeToAutoRun: true,
-    appearsInReviewPack: true,
+    safeToAutoRun: false,
+    appearsInReviewPack: false,
+    isActive: false,
+    troubleshootingNotes:
+      "Disabled by default until the current Meta business pages edge is re-verified against live documentation and a valid business-capable token.",
     packKeys: ["business_management", "discovery"]
   },
   {
@@ -191,10 +194,11 @@ export const builtInTests: BuiltInTestDefinition[] = [
       }
     ],
     expectedRules: [{ type: "array_nonempty", field: "data" }],
-    safeToAutoRun: true,
-    appearsInReviewPack: true,
+    safeToAutoRun: false,
+    appearsInReviewPack: false,
+    isActive: false,
     troubleshootingNotes:
-      "If no linked Instagram account appears, verify the business has access to the page and that the page is connected to an Instagram professional account.",
+      "Disabled by default until the current Meta business-linked Instagram discovery path is re-verified against live documentation and a valid business-capable token.",
     packKeys: ["business_management", "discovery"]
   },
   {
@@ -206,7 +210,7 @@ export const builtInTests: BuiltInTestDefinition[] = [
     tokenType: TokenType.PAGE,
     method: HttpMethod.GET,
     endpointTemplate: "{commentId}",
-    queryParams: { fields: "id,text,username,timestamp" },
+    queryParams: { fields: "id,timestamp" },
     dependencies: [
       {
         key: "commentId",

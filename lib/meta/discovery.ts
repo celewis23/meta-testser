@@ -200,7 +200,7 @@ export async function discoverAssets(environmentId: string) {
         endpoint: `${mediaId}/comments`,
         method: HttpMethod.GET,
         params: {
-          fields: "id,text,username,timestamp",
+          fields: "id,timestamp",
           limit: "10"
         }
       });
@@ -210,7 +210,7 @@ export async function discoverAssets(environmentId: string) {
           discoveries.push({
             type: AssetType.COMMENT_ID,
             value: String(comment.id),
-            label: String(comment.username ?? "Comment"),
+            label: "Comment",
             metadata: comment
           });
         }
