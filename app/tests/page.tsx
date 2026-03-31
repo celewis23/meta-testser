@@ -15,16 +15,26 @@ import { Textarea } from "@/components/ui/textarea";
 export default async function TestsPage({
   searchParams
 }: {
-  searchParams: Promise<{ environmentId?: string }>;
+  searchParams: Promise<{ environmentId?: string; error?: string }>;
 }) {
-  const { environmentId } = await searchParams;
+  const { environmentId, error } = await searchParams;
   const { environments, selectedEnvironment } = await getEnvironmentContext(environmentId);
   const tests = await prisma.testDefinition.findMany({
     where: { isActive: true },
     orderBy: [{ category: "asc" }, { displayName: "asc" }]
   });
+  const favoritePacks = await prisma.favoritePack.findMany({
+    orderBy: { name: "asc" }
+  });
   const categories = [...new Set(tests.map((test) => test.category))];
   const packKeys = [...new Set(tests.flatMap((test) => (test.packKeys as string[]) ?? []))].sort();
+  const defaultMode = favoritePacks.length > 0 ? "favorite" : packKeys.length > 0 ? "pack" : "all";
+  const defaultValue =
+    favoritePacks[0]?.id ??
+    packKeys[0] ??
+    categories[0] ??
+    tests[0]?.key ??
+    "";
 
   return (
     <div className="space-y-8">
@@ -48,13 +58,19 @@ export default async function TestsPage({
                 </a>
               ))}
             </div>
+            {error ? (
+              <div className="rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-warning">
+                {error}
+              </div>
+            ) : null}
             {selectedEnvironment ? (
               <form action={runTestsAction} className="space-y-4">
                 <input type="hidden" name="environmentId" value={selectedEnvironment.id} />
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="mode">Run mode</Label>
-                    <Select id="mode" name="mode" defaultValue="pack">
+                    <Select id="mode" name="mode" defaultValue={defaultMode}>
+                      <option value="favorite">Favorite pack</option>
                       <option value="single">Single test</option>
                       <option value="category">Category</option>
                       <option value="pack">Pack</option>
@@ -62,8 +78,45 @@ export default async function TestsPage({
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="value">Selected value</Label>
-                    <Input id="value" name="value" placeholder="pack key, category, or test key" />
+                    <Label htmlFor="value">Selection</Label>
+                    <Select id="value" name="value" defaultValue={defaultValue}>
+                      {favoritePacks.length > 0 ? (
+                        <optgroup label="Favorite packs">
+                          {favoritePacks.map((pack) => (
+                            <option key={pack.id} value={pack.id}>
+                              {pack.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                      {packKeys.length > 0 ? (
+                        <optgroup label="Pack keys">
+                          {packKeys.map((packKey) => (
+                            <option key={packKey} value={packKey}>
+                              {packKey}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                      {categories.length > 0 ? (
+                        <optgroup label="Categories">
+                          {categories.map((category) => (
+                            <option key={category} value={category}>
+                              {category}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                      {tests.length > 0 ? (
+                        <optgroup label="Individual tests">
+                          {tests.map((test) => (
+                            <option key={test.id} value={test.key}>
+                              {test.displayName}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="pacingMs">Pacing (ms)</Label>
@@ -79,7 +132,7 @@ export default async function TestsPage({
                   <Textarea id="notes" name="notes" placeholder="Optional context for this run..." />
                 </div>
                 <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
-                  Missing prerequisites panel: if Page ID, IG User ID, or token type is not available, the runner stores a blocked result with exact remediation rather than a vague failure.
+                  Recommended path: use `Favorite pack` to run the seeded starter suite. If a selection resolves to zero tests, the lab now stops the run and tells you exactly why instead of recording an empty pass.
                 </div>
                 <Button type="submit">Run suite</Button>
               </form>

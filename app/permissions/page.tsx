@@ -2,7 +2,7 @@ import { HttpMethod } from "@prisma/client";
 import { getEnvironmentContext } from "@/lib/db/context";
 import { prisma } from "@/lib/db/prisma";
 import { MetaGraphClient } from "@/lib/meta/client";
-import { decryptSecret } from "@/lib/security/crypto";
+import { getEffectiveEnvironmentValues } from "@/lib/security/env";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SectionHeader } from "@/components/ui/section-header";
 
@@ -17,12 +17,13 @@ export default async function PermissionsPage({
 
   let permissions: Array<{ permission: string; status: string }> = [];
   let error: string | null = null;
+  const effective = getEffectiveEnvironmentValues(selectedEnvironment);
 
-  if (selectedEnvironment?.encryptedUserAccessToken) {
+  if (effective.userAccessToken) {
     const client = new MetaGraphClient();
     const result = await client.request<{ data?: Array<{ permission: string; status: string }> }>({
-      apiVersion: selectedEnvironment.graphApiVersion,
-      accessToken: decryptSecret(selectedEnvironment.encryptedUserAccessToken) ?? "",
+      apiVersion: effective.graphApiVersion,
+      accessToken: effective.userAccessToken,
       endpoint: "me/permissions",
       method: HttpMethod.GET,
       params: { fields: "permission,status" }

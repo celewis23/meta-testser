@@ -31,19 +31,28 @@ export default async function RunsPage({
           <CardDescription>Choose a run to inspect or compare two runs side by side.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {Array.isArray(runs) && runs.map((run) => (
-            <div key={run.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-4 py-3">
-              <div>
-                <p className="font-semibold">{run.environment.label}</p>
-                <p className="text-sm text-muted-foreground">{run.triggerType} • {formatDateTime(run.startedAt)}</p>
+          {Array.isArray(runs) && runs.map((run) => {
+            const compareTarget = runs.find((candidate) => candidate.id !== run.id);
+            return (
+              <div key={run.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-4 py-3">
+                <div>
+                  <p className="font-semibold">{run.environment.label}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {run.triggerType} • {formatDateTime(run.startedAt)} • {run.items.length} item{run.items.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={run.summaryStatus} />
+                  <Link href={`/runs?runId=${run.id}`} className="rounded-xl border border-border px-3 py-2 text-sm">Inspect</Link>
+                  {compareTarget ? (
+                    <Link href={`/runs?compareA=${run.id}&compareB=${compareTarget.id}`} className="rounded-xl border border-border px-3 py-2 text-sm">Compare</Link>
+                  ) : (
+                    <span className="rounded-xl border border-border px-3 py-2 text-sm text-muted-foreground">Need 2 runs</span>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <StatusBadge status={run.summaryStatus} />
-                <Link href={`/runs?runId=${run.id}`} className="rounded-xl border border-border px-3 py-2 text-sm">Inspect</Link>
-                <Link href={`/runs?compareA=${run.id}${runs[1] ? `&compareB=${runs[1].id}` : ""}`} className="rounded-xl border border-border px-3 py-2 text-sm">Compare</Link>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </CardContent>
       </Card>
 
@@ -54,31 +63,37 @@ export default async function RunsPage({
             <CardDescription>{selectedRun.environment.label} • {formatDateTime(selectedRun.startedAt)}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {selectedRun.items.map((item) => (
-              <div key={item.id} className="rounded-2xl border border-border p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">{item.testDefinition.displayName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.endpoint} • {item.tokenType} • {item.responseCode ?? "n/a"} • {formatDuration(item.executionTimeMs)}
-                    </p>
+            {selectedRun.items.length > 0 ? (
+              selectedRun.items.map((item) => (
+                <div key={item.id} className="rounded-2xl border border-border p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{item.testDefinition.displayName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {item.endpoint} • {item.tokenType} • {item.responseCode ?? "n/a"} • {formatDuration(item.executionTimeMs)}
+                      </p>
+                    </div>
+                    <StatusBadge status={item.status} />
                   </div>
-                  <StatusBadge status={item.status} />
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <JsonInspector title="Resolved parameters" value={item.resolvedParams ?? {}} />
+                    <JsonInspector title="Normalized error / diagnostics" value={{ normalizedError: item.normalizedError, suggestions: item.suggestions }} />
+                    <JsonInspector title="Relevant IDs" value={item.relevantIds ?? {}} />
+                    <JsonInspector title="Formatted response JSON" value={item.responseJson ?? {}} />
+                  </div>
+                  <div className="mt-3 rounded-xl bg-muted/40 p-4 text-xs">
+                    <p>cURL</p>
+                    <pre className="mt-2">{item.curlCommand ?? "Unavailable for blocked runs."}</pre>
+                    <p className="mt-4">Graph API Explorer equivalent</p>
+                    <pre className="mt-2">{item.explorerRequest ?? "Unavailable for blocked runs."}</pre>
+                  </div>
                 </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <JsonInspector title="Resolved parameters" value={item.resolvedParams ?? {}} />
-                  <JsonInspector title="Normalized error / diagnostics" value={{ normalizedError: item.normalizedError, suggestions: item.suggestions }} />
-                  <JsonInspector title="Relevant IDs" value={item.relevantIds ?? {}} />
-                  <JsonInspector title="Formatted response JSON" value={item.responseJson ?? {}} />
-                </div>
-                <div className="mt-3 rounded-xl bg-muted/40 p-4 text-xs">
-                  <p>cURL</p>
-                  <pre className="mt-2">{item.curlCommand ?? "Unavailable for blocked runs."}</pre>
-                  <p className="mt-4">Graph API Explorer equivalent</p>
-                  <pre className="mt-2">{item.explorerRequest ?? "Unavailable for blocked runs."}</pre>
-                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-warning/40 bg-warning/10 p-5 text-sm text-warning">
+                This run contains zero saved items. That happened because the selection resolved to no tests, which older builds incorrectly treated as a passing run. New runs now block with an explicit error instead.
               </div>
-            ))}
+            )}
           </CardContent>
         </Card>
       ) : null}
@@ -105,6 +120,12 @@ export default async function RunsPage({
             </Card>
           ))}
         </div>
+      ) : compareA ? (
+        <Card>
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            Compare needs two runs. Pick another run from the list once you have at least two saved runs with items.
+          </CardContent>
+        </Card>
       ) : null}
     </div>
   );

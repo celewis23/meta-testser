@@ -9,8 +9,8 @@ import { syncBuiltInTests } from "@/lib/meta/catalog";
 import { discoverAssets } from "@/lib/meta/discovery";
 import { runTestsForEnvironment } from "@/lib/meta/runner";
 import { createSessionCookie, verifyAdminPassword, clearSessionCookie } from "@/lib/security/auth";
-import { decryptSecret, encryptSecret } from "@/lib/security/crypto";
-import { getDefaultEnvironmentValues } from "@/lib/security/env";
+import { encryptSecret } from "@/lib/security/crypto";
+import { getDefaultEnvironmentValues, getEffectiveEnvironmentValues } from "@/lib/security/env";
 import { slugify } from "@/lib/utils/format";
 import { assetSchema, environmentSchema, testDefinitionSchema } from "@/lib/validation";
 
@@ -185,39 +185,46 @@ export async function runDiscoveryAction(formData: FormData) {
 
 export async function runTestsAction(formData: FormData) {
   const environmentId = String(formData.get("environmentId"));
-  const mode = String(formData.get("mode")) as "single" | "category" | "pack" | "all";
+  const mode = String(formData.get("mode")) as "single" | "category" | "pack" | "favorite" | "all";
   const value = optionalString(formData.get("value"));
   const pacingMs = Number(formData.get("pacingMs") || 0);
   const retryCount = Number(formData.get("retryCount") || 0);
   const notes = optionalString(formData.get("notes"));
 
-  const runId = await runTestsForEnvironment({
-    environmentId,
-    selection:
-      mode === "single"
-        ? { mode, testKey: value ?? "" }
-        : mode === "category"
-          ? { mode, category: value ?? "" }
-          : mode === "pack"
-            ? { mode, packKey: value ?? "" }
-            : { mode: "all" },
-    pacingMs,
-    retryCount,
-    notes: notes ?? undefined
-  });
+  try {
+    const runId = await runTestsForEnvironment({
+      environmentId,
+      selection:
+        mode === "single"
+          ? { mode, testKey: value ?? "" }
+          : mode === "category"
+            ? { mode, category: value ?? "" }
+            : mode === "pack"
+              ? { mode, packKey: value ?? "" }
+              : mode === "favorite"
+                ? { mode, favoritePackId: value ?? "" }
+                : { mode: "all" },
+      pacingMs,
+      retryCount,
+      notes: notes ?? undefined
+    });
 
-  await logAudit({
-    action: "run_tests",
-    entityType: "TestRun",
-    entityId: runId,
-    environmentId,
-    summary: `Started ${mode} run`
-  });
+    await logAudit({
+      action: "run_tests",
+      entityType: "TestRun",
+      entityId: runId,
+      environmentId,
+      summary: `Started ${mode} run`
+    });
 
-  revalidatePath("/dashboard");
-  revalidatePath("/runs");
-  revalidatePath("/review-pack");
-  redirect(`/runs?runId=${runId}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/runs");
+    revalidatePath("/review-pack");
+    redirect(`/runs?runId=${runId}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to start the test run.";
+    redirect(`/tests?environmentId=${environmentId}&error=${encodeURIComponent(message)}`);
+  }
 }
 
 export async function saveTestDefinitionAction(formData: FormData) {
@@ -311,16 +318,11 @@ export async function loadEnvDefaultsAction() {
 
 export async function getDecryptedEnvironmentValues(environmentId: string) {
   const environment = await prisma.environment.findUnique({
-    where: { id: environmentId }
+    where: { id: environmentId },
+    include: { assets: true }
   });
   if (!environment) return null;
-  return {
-    ...environment,
-    appSecret: decryptSecret(environment.encryptedAppSecret),
-    userAccessToken: decryptSecret(environment.encryptedUserAccessToken),
-    pageAccessToken: decryptSecret(environment.encryptedPageAccessToken),
-    systemUserToken: decryptSecret(environment.encryptedSystemUserToken)
-  };
+  return getEffectiveEnvironmentValues(environment);
 }
 
 function optionalString(value: FormDataEntryValue | null) {

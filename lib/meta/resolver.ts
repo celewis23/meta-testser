@@ -1,4 +1,5 @@
 import { AssetType, type AssetValue, type Environment, TokenType } from "@prisma/client";
+import { getDefaultEnvironmentValues } from "@/lib/security/env";
 import type { DependencyDescriptor, ResolvedTest } from "@/types/meta";
 
 type ResolverInput = {
@@ -75,10 +76,17 @@ export function getTokenField(environment: Environment, tokenType: TokenType) {
 }
 
 function collectValues(environment: Environment & { assets: AssetValue[] }) {
+  const defaults = getDefaultEnvironmentValues();
   const values: Record<string, string> = {};
-  if (environment.defaultBusinessId) values.businessId = environment.defaultBusinessId;
-  if (environment.defaultPageId) values.pageId = environment.defaultPageId;
-  if (environment.defaultInstagramUserId) values.igUserId = environment.defaultInstagramUserId;
+  if (environment.defaultBusinessId || defaults.defaultBusinessId) {
+    values.businessId = environment.defaultBusinessId || defaults.defaultBusinessId;
+  }
+  if (environment.defaultPageId || defaults.defaultPageId) {
+    values.pageId = environment.defaultPageId || defaults.defaultPageId;
+  }
+  if (environment.defaultInstagramUserId || defaults.defaultInstagramUserId) {
+    values.igUserId = environment.defaultInstagramUserId || defaults.defaultInstagramUserId;
+  }
 
   for (const asset of environment.assets) {
     if (asset.type === AssetType.BUSINESS_ID) values.businessId ??= asset.value;

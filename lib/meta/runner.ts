@@ -1,9 +1,9 @@
-import { HttpMethod, TestStatus, type AssetValue, type Environment, type Prisma, type TestDefinition } from "@prisma/client";
+import { HttpMethod, TestStatus, TokenType, type AssetValue, type Environment, type Prisma, type TestDefinition } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { MetaGraphClient } from "@/lib/meta/client";
 import { classifyExecution, evaluateExpectedRules } from "@/lib/meta/diagnostics";
-import { DependencyError, getTokenField, resolveTestPlaceholders } from "@/lib/meta/resolver";
-import { decryptSecret } from "@/lib/security/crypto";
+import { DependencyError, resolveTestPlaceholders } from "@/lib/meta/resolver";
+import { getEffectiveEnvironmentValues } from "@/lib/security/env";
 
 const client = new MetaGraphClient();
 
@@ -11,6 +11,7 @@ type RunSelection =
   | { mode: "single"; testKey: string }
   | { mode: "category"; category: string }
   | { mode: "pack"; packKey: string }
+  | { mode: "favorite"; favoritePackId: string }
   | { mode: "all" };
 
 export async function runTestsForEnvironment(params: {
@@ -30,6 +31,9 @@ export async function runTestsForEnvironment(params: {
   }
 
   const tests = await loadTests(params.selection);
+  if (tests.length === 0) {
+    throw new Error(getEmptySelectionMessage(params.selection));
+  }
   const run = await prisma.testRun.create({
     data: {
       environmentId: params.environmentId,
@@ -78,6 +82,7 @@ async function executeOne(params: {
   retryCount: number;
 }) {
   try {
+    const effective = getEffectiveEnvironmentValues(params.environment);
     const resolved = resolveTestPlaceholders({
       environment: params.environment,
       endpointTemplate: params.test.endpointTemplate,
@@ -86,7 +91,7 @@ async function executeOne(params: {
       requestBody: (params.test.requestBody as Record<string, unknown> | null) ?? undefined
     });
 
-    const token = decryptSecret(getTokenField(params.environment, params.test.tokenType));
+    const token = getTokenValue(effective, params.test.tokenType);
     if (!token) {
       throw new DependencyError("Missing token", [
         {
@@ -98,7 +103,7 @@ async function executeOne(params: {
     }
 
     let response = await client.request({
-      apiVersion: params.environment.graphApiVersion,
+      apiVersion: effective.graphApiVersion,
       accessToken: token,
       endpoint: resolved.endpoint,
       method: params.test.method,
@@ -110,7 +115,7 @@ async function executeOne(params: {
     while (!response.ok && response.error?.is_transient && attempts < params.retryCount) {
       attempts += 1;
       response = await client.request({
-        apiVersion: params.environment.graphApiVersion,
+        apiVersion: effective.graphApiVersion,
         accessToken: token,
         endpoint: resolved.endpoint,
         method: params.test.method,
@@ -141,8 +146,8 @@ async function executeOne(params: {
         normalizedError: (response.error ?? undefined) as Prisma.InputJsonValue | undefined,
         executionTimeMs: response.durationMs,
         relevantIds: resolved.values as Prisma.InputJsonValue,
-        curlCommand: buildCurl(params.environment.graphApiVersion, token, resolved.endpoint, params.test.method, resolved.queryParams),
-        explorerRequest: `/${params.environment.graphApiVersion}/${resolved.endpoint}?${new URLSearchParams(resolved.queryParams).toString()}`,
+        curlCommand: buildCurl(effective.graphApiVersion, token, resolved.endpoint, params.test.method, resolved.queryParams),
+        explorerRequest: `/${effective.graphApiVersion}/${resolved.endpoint}?${new URLSearchParams(resolved.queryParams).toString()}`,
         suggestions: classification.diagnostics as Prisma.InputJsonValue,
         finishedAt: new Date()
       }
@@ -195,6 +200,26 @@ async function loadTests(selection: RunSelection) {
     return tests.filter((test) => Array.isArray(test.packKeys) && test.packKeys.includes(selection.packKey));
   }
 
+  if (selection.mode === "favorite") {
+    const favorite = await prisma.favoritePack.findUnique({
+      where: { id: selection.favoritePackId }
+    });
+
+    if (!favorite || !Array.isArray(favorite.testKeys) || favorite.testKeys.length === 0) {
+      return [];
+    }
+
+    return prisma.testDefinition.findMany({
+      where: {
+        isActive: true,
+        key: {
+          in: favorite.testKeys.filter((value): value is string => typeof value === "string")
+        }
+      },
+      orderBy: [{ category: "asc" }, { displayName: "asc" }]
+    });
+  }
+
   return prisma.testDefinition.findMany({
     where: { isActive: true },
     orderBy: [{ category: "asc" }, { displayName: "asc" }]
@@ -234,4 +259,46 @@ function buildCurl(
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getTokenValue(
+  effective: ReturnType<typeof getEffectiveEnvironmentValues>,
+  tokenType: TestDefinition["tokenType"]
+) {
+  switch (tokenType) {
+    case TokenType.PAGE:
+      return effective.pageAccessToken;
+    case TokenType.SYSTEM_USER:
+      return effective.systemUserToken;
+    default:
+      return effective.userAccessToken;
+  }
+}
+
+function getEmptySelectionMessage(selection: RunSelection) {
+  if (selection.mode === "pack") {
+    return selection.packKey
+      ? `No active tests were found for the pack "${selection.packKey}".`
+      : "Choose a pack before running a pack-based suite.";
+  }
+
+  if (selection.mode === "favorite") {
+    return selection.favoritePackId
+      ? "The selected favorite pack does not contain any active tests."
+      : "Choose a favorite pack before running the recommended suite.";
+  }
+
+  if (selection.mode === "category") {
+    return selection.category
+      ? `No active tests were found in the category "${selection.category}".`
+      : "Choose a category before running a category suite.";
+  }
+
+  if (selection.mode === "single") {
+    return selection.testKey
+      ? `No active test definition was found for "${selection.testKey}".`
+      : "Choose a test before running a single-test check.";
+  }
+
+  return "No tests were available for this run.";
 }

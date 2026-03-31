@@ -1,7 +1,7 @@
 import { AssetSource, AssetType, HttpMethod, TokenType, type Environment, type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { MetaGraphClient } from "@/lib/meta/client";
-import { decryptSecret } from "@/lib/security/crypto";
+import { getEffectiveEnvironmentValues } from "@/lib/security/env";
 
 const client = new MetaGraphClient();
 
@@ -14,6 +14,7 @@ export async function discoverAssets(environmentId: string) {
   if (!environment) {
     throw new Error("Environment not found");
   }
+  const effective = getEffectiveEnvironmentValues(environment);
 
   const discoveries: Array<{
     type: AssetType;
@@ -22,13 +23,13 @@ export async function discoverAssets(environmentId: string) {
     metadata?: Record<string, unknown>;
   }> = [];
 
-  const userToken = decryptSecret(environment.encryptedUserAccessToken);
-  const pageToken = decryptSecret(environment.encryptedPageAccessToken);
-  const systemUserToken = decryptSecret(environment.encryptedSystemUserToken);
+  const userToken = effective.userAccessToken;
+  const pageToken = effective.pageAccessToken;
+  const systemUserToken = effective.systemUserToken;
 
   if (userToken) {
     const pages = await client.request<{ data?: Array<Record<string, unknown>> }>({
-      apiVersion: environment.graphApiVersion,
+      apiVersion: effective.graphApiVersion,
       accessToken: userToken,
       endpoint: "me/accounts",
       method: HttpMethod.GET,
@@ -58,13 +59,11 @@ export async function discoverAssets(environmentId: string) {
     }
   }
 
-  const pageId =
-    environment.defaultPageId ??
-    environment.assets.find((asset) => asset.type === AssetType.PAGE_ID)?.value;
+  const pageId = effective.defaultPageId || environment.assets.find((asset) => asset.type === AssetType.PAGE_ID)?.value;
 
   if (pageId && pageToken) {
     const pageDetails = await client.request<Record<string, unknown>>({
-      apiVersion: environment.graphApiVersion,
+      apiVersion: effective.graphApiVersion,
       accessToken: pageToken,
       endpoint: pageId,
       method: HttpMethod.GET,
@@ -87,13 +86,11 @@ export async function discoverAssets(environmentId: string) {
     }
   }
 
-  const businessId =
-    environment.defaultBusinessId ??
-    environment.assets.find((asset) => asset.type === AssetType.BUSINESS_ID)?.value;
+  const businessId = effective.defaultBusinessId || environment.assets.find((asset) => asset.type === AssetType.BUSINESS_ID)?.value;
 
   if (businessId && systemUserToken) {
     const businessPages = await client.request<{ data?: Array<Record<string, unknown>> }>({
-      apiVersion: environment.graphApiVersion,
+      apiVersion: effective.graphApiVersion,
       accessToken: systemUserToken,
       endpoint: `${businessId}/owned_pages`,
       method: HttpMethod.GET,
@@ -154,18 +151,19 @@ export async function discoverAssets(environmentId: string) {
 }
 
 export function tokenHealth(environment: Environment) {
+  const effective = getEffectiveEnvironmentValues(environment);
   return [
     {
       tokenType: TokenType.USER,
-      configured: Boolean(environment.encryptedUserAccessToken)
+      configured: Boolean(effective.userAccessToken)
     },
     {
       tokenType: TokenType.PAGE,
-      configured: Boolean(environment.encryptedPageAccessToken)
+      configured: Boolean(effective.pageAccessToken)
     },
     {
       tokenType: TokenType.SYSTEM_USER,
-      configured: Boolean(environment.encryptedSystemUserToken)
+      configured: Boolean(effective.systemUserToken)
     }
   ];
 }
