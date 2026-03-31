@@ -362,6 +362,54 @@ export async function loadEnvDefaultsAction() {
   redirect(`/environments?environmentId=${environment.id}`);
 }
 
+export async function syncEnvToEnvironmentAction(formData: FormData) {
+  const environmentId = String(formData.get("environmentId"));
+  const defaults = getDefaultEnvironmentValues();
+  const environment = await prisma.environment.findUnique({
+    where: { id: environmentId }
+  });
+
+  if (!environment) {
+    redirect("/environments?tokenError=Environment%20not%20found");
+  }
+
+  await prisma.environment.update({
+    where: { id: environmentId },
+    data: {
+      graphApiVersion: defaults.graphApiVersion || environment.graphApiVersion,
+      appId: defaults.appId || environment.appId,
+      encryptedAppSecret: defaults.appSecret
+        ? encryptSecret(defaults.appSecret)
+        : environment.encryptedAppSecret,
+      encryptedUserAccessToken: defaults.userAccessToken
+        ? encryptSecret(defaults.userAccessToken)
+        : environment.encryptedUserAccessToken,
+      encryptedPageAccessToken: defaults.pageAccessToken
+        ? encryptSecret(defaults.pageAccessToken)
+        : environment.encryptedPageAccessToken,
+      encryptedSystemUserToken: defaults.systemUserToken
+        ? encryptSecret(defaults.systemUserToken)
+        : environment.encryptedSystemUserToken,
+      defaultBusinessId: defaults.defaultBusinessId || environment.defaultBusinessId,
+      defaultPageId: defaults.defaultPageId || environment.defaultPageId,
+      defaultInstagramUserId: defaults.defaultInstagramUserId || environment.defaultInstagramUserId
+    }
+  });
+
+  await logAudit({
+    action: "sync_env_to_environment",
+    entityType: "Environment",
+    environmentId,
+    summary: "Synced app credentials, tokens, and default IDs from .env"
+  });
+
+  revalidatePath("/environments");
+  revalidatePath("/permissions");
+  revalidatePath("/assets");
+  revalidatePath("/dashboard");
+  redirect(`/environments?environmentId=${environmentId}&tokenUpdated=sync`);
+}
+
 export async function getDecryptedEnvironmentValues(environmentId: string) {
   const environment = await prisma.environment.findUnique({
     where: { id: environmentId },

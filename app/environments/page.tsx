@@ -6,7 +6,8 @@ import {
   getDecryptedEnvironmentValues,
   loadEnvDefaultsAction,
   regeneratePageTokenAction,
-  saveEnvironmentAction
+  saveEnvironmentAction,
+  syncEnvToEnvironmentAction
 } from "@/lib/actions";
 import { getEnvironmentTokenStatuses } from "@/lib/meta/token-manager";
 import { formatDateTime, maskSecret } from "@/lib/utils/format";
@@ -135,6 +136,8 @@ export default async function EnvironmentsPage({
                     ? "User token updated successfully."
                     : tokenUpdated === "page"
                       ? "Page token regenerated successfully."
+                      : tokenUpdated === "sync"
+                        ? "Environment synced from .env successfully."
                       : "Token updated successfully."}
                 </div>
               ) : null}
@@ -352,10 +355,17 @@ export default async function EnvironmentsPage({
                       Regenerate page token
                     </Button>
                   </form>
+                  <form action={syncEnvToEnvironmentAction}>
+                    <input type="hidden" name="environmentId" value={selectedEnvironment.id} />
+                    <Button type="submit" variant="outline">
+                      Sync from .env
+                    </Button>
+                  </form>
                 </div>
                 <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
                   Automatic from here: user-token extension and page-token regeneration from the current user token.
                   Still manual: system user token creation and any Meta login flow that requires interactive consent.
+                  Use `Sync from .env` when you have refreshed local env credentials and want the active environment record to match them.
                 </div>
               </CardContent>
             </Card>
