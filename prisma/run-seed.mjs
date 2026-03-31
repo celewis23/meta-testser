@@ -4,17 +4,10 @@ import path from "node:path";
 
 loadDotEnv();
 
-const provider = process.env.DATABASE_PROVIDER === "postgresql" ? "postgresql" : "sqlite";
-const schema = provider === "postgresql" ? "prisma/schema.postgres.prisma" : "prisma/schema.prisma";
-const incomingArgs = process.argv.slice(2);
-const args =
-  provider === "postgresql" && incomingArgs[0] === "migrate"
-    ? ["db", "push"]
-    : incomingArgs;
-
-const result = spawnSync("npx", ["prisma", ...args, "--schema", schema], {
+const result = spawnSync("npx", ["tsx", "prisma/seed.ts"], {
   stdio: "inherit",
-  shell: true
+  shell: true,
+  env: process.env
 });
 
 process.exit(result.status ?? 1);

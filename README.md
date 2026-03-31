@@ -2,6 +2,15 @@
 
 Meta Permission Test Lab is an internal Next.js admin app for securely testing Meta Graph API permissions, discovering related asset IDs, running App Review-ready test suites, and exporting structured evidence.
 
+## Default database workflow
+
+This repo should be developed with this assumption by default:
+
+- Local development uses SQLite.
+- Vercel production uses hosted Postgres.
+- Recommended hosted Postgres provider: Neon.
+- Railway Postgres is also supported.
+
 ## Architecture summary
 
 - `app/`: App Router pages for dashboard, environments, assets, permissions, tests, runs, review-pack, and export routes.
@@ -57,7 +66,9 @@ These cover starter flows for:
 
 ## Vercel deployment
 
-1. Provision a Prisma-compatible Postgres database such as Neon, Supabase, or Vercel Postgres.
+1. Provision a Prisma-compatible hosted Postgres database.
+   Recommended: Neon.
+   Alternative: Railway Postgres.
 2. In Vercel, set:
    - `DATABASE_PROVIDER=postgresql`
    - `DATABASE_URL=<your pooled or direct Postgres url>`
@@ -67,12 +78,32 @@ These cover starter flows for:
    - optional Meta defaults for first-time bootstrap
 3. Run `npm run db:deploy` during or before deployment to apply Prisma migrations.
 4. Deploy the Next.js app normally to Vercel.
+5. Use `.env.production.example` as your production env reference.
+
+## Neon quick start
+
+1. Create a Neon project and database.
+2. Copy the Postgres connection string.
+3. Add the following env vars in Vercel:
+   - `DATABASE_PROVIDER=postgresql`
+   - `DATABASE_URL=<your neon connection string>`
+4. Redeploy.
+
+## Railway quick start
+
+1. Create a PostgreSQL service in Railway.
+2. Copy the Postgres connection string.
+3. Add the following env vars in Vercel:
+   - `DATABASE_PROVIDER=postgresql`
+   - `DATABASE_URL=<your railway connection string>`
+4. Redeploy.
 
 ## Vercel caveats
 
 - SQLite is only for local development; do not use it in Vercel production.
 - Server-side Meta calls depend on the deployment having outbound network access to `graph.facebook.com`.
 - Tokens and app secrets are encrypted before database storage, but rotate encryption/session secrets carefully because changing them invalidates decryption/session state.
+- The app now fails fast in production if `DATABASE_PROVIDER` is not `postgresql`.
 
 ## First-time flow
 

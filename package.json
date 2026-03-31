@@ -5,12 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "node prisma/run-prisma.mjs generate && next build",
+    "vercel-build": "node prisma/run-prisma.mjs generate && next build",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "node prisma/run-prisma.mjs generate",
     "db:migrate": "node prisma/run-prisma.mjs migrate dev",
     "db:deploy": "node prisma/run-prisma.mjs migrate deploy",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "node prisma/run-seed.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
