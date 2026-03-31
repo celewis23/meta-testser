@@ -43,9 +43,9 @@ export default async function RunsPage({
                 </div>
                 <div className="flex items-center gap-2">
                   <StatusBadge status={run.summaryStatus} />
-                  <Link href={`/runs?runId=${run.id}`} className="rounded-xl border border-border px-3 py-2 text-sm">Inspect</Link>
+                  <Link href={`/runs?runId=${run.id}#run-detail`} className="rounded-xl border border-border px-3 py-2 text-sm">Inspect</Link>
                   {compareTarget ? (
-                    <Link href={`/runs?compareA=${run.id}&compareB=${compareTarget.id}`} className="rounded-xl border border-border px-3 py-2 text-sm">Compare</Link>
+                    <Link href={`/runs?compareA=${run.id}&compareB=${compareTarget.id}#run-compare`} className="rounded-xl border border-border px-3 py-2 text-sm">Compare</Link>
                   ) : (
                     <span className="rounded-xl border border-border px-3 py-2 text-sm text-muted-foreground">Need 2 runs</span>
                   )}
@@ -57,7 +57,7 @@ export default async function RunsPage({
       </Card>
 
       {selectedRun && !Array.isArray(selectedRun) ? (
-        <Card>
+        <Card id="run-detail" className="scroll-mt-24">
           <CardHeader>
             <CardTitle>Run detail</CardTitle>
             <CardDescription>{selectedRun.environment.label} • {formatDateTime(selectedRun.startedAt)}</CardDescription>
@@ -99,7 +99,7 @@ export default async function RunsPage({
       ) : null}
 
       {compareRunA && compareRunB && !Array.isArray(compareRunA) && !Array.isArray(compareRunB) ? (
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div id="run-compare" className="grid scroll-mt-24 gap-6 xl:grid-cols-2">
           {[compareRunA, compareRunB].map((run) => (
             <Card key={run.id}>
               <CardHeader>
