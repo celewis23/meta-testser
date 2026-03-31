@@ -15,7 +15,8 @@ export async function syncBuiltInTests() {
         expectedRules: test.expectedRules as Prisma.InputJsonValue,
         sampleSuccessShape: (test.sampleSuccessShape ?? undefined) as Prisma.InputJsonValue | undefined,
         packKeys: test.packKeys,
-        isBuiltIn: true
+        isBuiltIn: true,
+        isActive: test.isActive ?? true
       },
       update: {
         displayName: test.displayName,
@@ -34,7 +35,8 @@ export async function syncBuiltInTests() {
         sampleSuccessShape: (test.sampleSuccessShape ?? undefined) as Prisma.InputJsonValue | undefined,
         troubleshootingNotes: test.troubleshootingNotes,
         packKeys: test.packKeys,
-        isBuiltIn: true
+        isBuiltIn: true,
+        isActive: test.isActive ?? true
       }
     });
   }

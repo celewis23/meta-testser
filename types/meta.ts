@@ -64,6 +64,7 @@ export type BuiltInTestDefinition = {
   expectedRules: ExpectedRule[];
   safeToAutoRun: boolean;
   appearsInReviewPack: boolean;
+  isActive?: boolean;
   sampleSuccessShape?: JsonRecord;
   troubleshootingNotes?: string;
   packKeys: string[];
